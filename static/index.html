@@ -445,7 +445,8 @@ function update() {
     });
 }
 // 30 frames per second
-setInterval( update, 1000);
+setInterval( update, 1000/30.0);
+
 function clear() {
     console.log('send clear')
     sendJSONXMLHTTPRequest('GET', '/clear', null, function(resp) {
