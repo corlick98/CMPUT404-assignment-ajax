@@ -20,10 +20,54 @@
         See the License for the specific language governing permissions and
         limitations under the License.
     "/>
+    <link rel="stylesheet" href="index.css">
     <script src="json2.js"></script>
+    <script src="randomColor.js"></script>
   </head> 
   <body bgcolor="black" height="100%" width="100%"> 
-    <canvas id="c" width="100%" height="100%" style="-webkit-tap-highlight-color: transparent;"></canvas> 
+    <div>
+        <div class="shapeChooser">
+            <!-- https://stackoverflow.com/questions/17541614/use-images-instead-of-radio-buttons -->
+            <label>
+                <input type="radio" name="shape" value="circle" id="circle" checked>
+                <img src="images/new-moon.png" alt="circle">
+            </label><br>
+            <label>
+                <input type="radio" name="shape" value="star" id="star">
+                <img src="images/star.png" alt="star">
+            </label><br>
+            <label>
+                <input type="radio" name="shape" value="square" id="square">
+                <img src="images/square.png" alt="square">
+            </label><br>
+            <label>
+                <input type="radio" name="shape" value="triangle" id="triangle">
+                <img src="images/plain-triangle.png" alt="triangle">
+            </label><br>
+        </div>
+        <canvas id="c" width="100%" height="100%" style="-webkit-tap-highlight-color: transparent;"></canvas> 
+        <button id="clear" class="clear">Clear Screen</button>
+        <button id="openModal">Credit</button>
+    </div>
+    <!-- https://www.w3schools.com/howto/howto_css_modals.asp -->
+    <div id="creditModal" class="modal">
+        <!-- Modal content -->
+        <div class="modal-content">
+          <div class="modal-header">
+            <span id="closeModal">&times;</span>
+            <h2>Credits</h2>
+          </div>
+          <div class="modal-body">
+            <p><a href="https://www.flaticon.com/free-icons/circle" title="circle icons">Circle icons created by Freepik - Flaticon</a></p>
+            <p><a href="https://www.flaticon.com/free-icons/star" title="star icons">Star icons created by mim_studio - Flaticon</a></p>
+            <p><a href="https://www.flaticon.com/free-icons/shape" title="shape icons">Square icons created by Roundicons Premium - Flaticon</a></p>
+            <p><a href="https://www.flaticon.com/free-icons/triangle" title="triangle icons">Triangle icons created by Freepik - Flaticon</a></p>
+            <p><a href="https://www.w3schools.com/howto/howto_css_modals.asp" title="modal code">Bottom Modal code inspired by w3schools</a></p>
+            <p><a href="https://martin.ankerl.com/2009/12/09/how-to-create-random-colors-programmatically/" title="Random color">Random Color generator adapted from Martin Ankerl</a></p>
+          </div>
+        </div>
+      
+      </div>
     <script>
 var canvas = document.getElementById('c');
 var host = window.location.host;
@@ -32,59 +76,165 @@ var W = canvas.width  = window.innerWidth-6;
 var H = canvas.height = window.innerHeight-50;
 
 
-function sendJSONXMLHTTPRequest(url, objects, callback) {
+function sendJSONXMLHTTPRequest(method, url, objects, callback) {
     var xhr = new XMLHttpRequest();
     xhr.onreadystatechange = function () {
         if (xhr.readyState==4) {
             try {
                 if (xhr.status==200) {
+                    let jsonResp = JSON.parse(xhr.response);
+                    callback(jsonResp);
                     //XXX: parse some JSON from the request!
                     //XXX: Pass the data to the callback!
                 }
             } 
             catch(e) {
                 alert('Error: ' + e.name);
+                console.error(e);
             }
         }
     };
     //XXX: POST to a URL
     //XXX: set the mimetype and the accept headers!
     // Remember to use application/json !
+    xhr.open(method, url, true);
+    xhr.overrideMimeType('application/json');
+    xhr.setRequestHeader('Accept', 'application/json');
+    xhr.setRequestHeader('Content-Type', 'application/json');
+    xhr.send(JSON.stringify(objects));
 }
 
 
 world = {};
 
 //XXX: TODO Make this prettier!
-function drawCircle(context,entity) {
+function drawCircle(context,entity, prev) {
     with(context) {
         beginPath();              
         lineWidth = 3;
         var x = entity["x"];
         var y = entity["y"];
+        var px = prev['x'];
+        var py = prev['y'];
+        var xdiff = x-px;
+        var ydiff = y-py;
+        var mag = Math.sqrt(xdiff*xdiff + ydiff*ydiff);
         //moveTo(x,y);
+        if (entity['colour'] === 'random') {
+            var randCol = random_color();
+            entity['colour'] = "#"+randCol;
+        }
         fillStyle = entity["colour"];
         strokeStyle = fillStyle;
-        arc(x, y, (entity["radius"])?entity["radius"]:50, 0, 2.0 * Math.PI, false);  
-        stroke();                                
+        let r = Math.max((100-mag)/3, 1);
+        arc(x, y, r, 0, 2.0 * Math.PI, false);  
+        fill();                                
+    }
+}
+// https://stackoverflow.com/a/45140101
+function drawStar(context, entity, prev) {
+    with(context) {
+        save();
+        beginPath();
+        lineWidth = 3;
+        var x = entity["x"];
+        var y = entity["y"];
+        var px = prev['x'];
+        var py = prev['y'];
+        var xdiff = x-px;
+        var ydiff = y-py;
+        var mag = Math.sqrt(xdiff*xdiff + ydiff*ydiff);
+        var inset = 3;
+        if (entity['colour'] === 'random') {
+            var randCol = random_color();
+            entity['colour'] = "#"+randCol;
+        }
+        fillStyle = entity["colour"];
+        strokeStyle = fillStyle;
+        let r = Math.max((75-mag)/3, 1);
+        translate(x, y);
+        moveTo(0,0-r);
+        for (var i = 0; i < 5; i++) {
+            rotate(Math.PI / 5);
+            lineTo(0, 0 - (r*inset));
+            rotate(Math.PI / 5);
+            lineTo(0, 0 - r);
+        }
+        closePath();
+        fill();
+        restore();
+    }
+}
+
+function drawSquare(context, entity, prev) {
+    with(context) {
+        beginPath();              
+        lineWidth = 3;
+        var x = entity["x"];
+        var y = entity["y"];
+        var px = prev['x'];
+        var py = prev['y'];
+        var xdiff = x-px;
+        var ydiff = y-py;
+        var mag = Math.sqrt(xdiff*xdiff + ydiff*ydiff);
+        //moveTo(x,y);
+        if (entity['colour'] === 'random') {
+            var randCol = random_color();
+            entity['colour'] = "#"+randCol;
+        }
+        fillStyle = entity["colour"];
+        strokeStyle = fillStyle;
+        let r = Math.max((100-mag)/3, 1);
+        rect(x, y, 7.5*r, 5*r); 
+        fill();                                
+    }
+}
+
+function drawTriangle(context, entity, prev) {
+    with(context) {
+        save();
+        beginPath();              
+        lineWidth = 3;
+        var x = entity["x"];
+        var y = entity["y"];
+        var px = prev['x'];
+        var py = prev['y'];
+        var xdiff = x-px;
+        var ydiff = y-py;
+        var mag = Math.sqrt(xdiff*xdiff + ydiff*ydiff);
+        //moveTo(x,y);
+        if (entity['colour'] === 'random') {
+            var randCol = random_color();
+            entity['colour'] = "#"+randCol;
+        }
+        fillStyle = entity["colour"];
+        strokeStyle = fillStyle;
+        let r = Math.max((100-mag)/3, 1);
+        translate(x,y);
+        moveTo(0, 0-r);
+        lineTo(r*(1.0/Math.sqrt(3)), 0);
+        lineTo(-r*(1.0/Math.sqrt(3)), 0);
+        closePath();
+        fill();
+        restore();                             
     }
 }
 
 function prepEntity(entity) {
     if (!entity["colour"]) {
-        entity["colour"] = "#FF0000";
+        entity["colour"] = "random";
     }
-    if (!entity["radius"]) {
-        entity["radius"] = 50;
+    if (!entity['shape']) {
+        entity['shape'] = 'circle';
     }
     return entity;
 }
 
 function clearFrame() {
     with(context) {
-	moveTo(0,0);
-	fillStyle = "#000";
-	fillRect(0,0,W,H);
+        moveTo(0,0);
+        fillStyle = "#000";
+        fillRect(0,0,W,H);
     }
 
 }
@@ -92,9 +242,28 @@ function clearFrame() {
 // This actually draws the frame
 function renderFrame() {
     clearFrame();
-    for (var key in world) {
-        var entity = world[key];
-        drawCircle(context,prepEntity(entity));
+    if (Object.keys(world).length != 0) {
+        let prev = world[Object.keys(world)[0]];
+        for (var key in world) {
+            let entity = world[key];
+            switch(entity.shape) {
+                case 'circle':
+                    drawCircle(context, prepEntity(entity), prepEntity(prev));
+                    break;
+                case 'star':
+                    drawStar(context, prepEntity(entity), prepEntity(prev));
+                    break;
+                case 'square':
+                    drawSquare(context, prepEntity(entity), prepEntity(prev));
+                    break;
+                case 'triangle':
+                    drawTriangle(context, prepEntity(entity), prepEntity(prev));
+                    break;
+                default:
+                    break;
+            }
+            prev = entity;
+        }
     }
 }
 
@@ -138,14 +307,22 @@ function addEntity(entity, data) {
     world[entity] = data;
     drawNextFrame(); // (but should we?)
     //XXX: Send a XHTML Request that updates the entity you just  modified!
+    sendJSONXMLHTTPRequest('POST', '/entity/'+entity, data, function(result){
+        return;
+    })
 
 }
 
 var counter = 0;
 function addEntityWithoutName(data) {
     //var name = "X"+Math.floor((Math.random()*100)+1);
-    var name = "X"+(counter++)%100;
-    addEntity(name,data);
+    var name = "X"+(counter++)%10000;
+    for (let shape of ['circle', 'star', 'square', 'triangle']) {
+        if (document.getElementById(shape).checked) {
+            data.shape = shape;
+        }
+    }
+    addEntity(name, data);
 }
 
 // canvas + mouse/touch is complicated 
@@ -247,28 +424,53 @@ mouse = (function() {
 // Add the application specific mouse listeners!
 //XXX: TODO Make these prettier!
 mouse.mousedowners.push(function(x,y,clicked,e) {
-    addEntityWithoutName({'x':x,'y':y,'colour':'blue'});
+    addEntityWithoutName({'x':x,'y':y,'colour':'transparent'});
 });
 
 mouse.mouseuppers.push(function(x,y,clicked,e) {
-    addEntityWithoutName({'x':x,'y':y,'colour':'red'});
+    addEntityWithoutName({'x':x,'y':y,'colour':'transparent'});
 });
 
 mouse.mousedraggers.push(function(x,y,clicked,e) {
-    addEntityWithoutName({'x':x,'y':y,'colour':'green',
-                          'radius':10});
+    addEntityWithoutName({'x':x,'y':y,'colour':'random'});
 });
 
 
 function update() {
     //XXX: TODO Get the world from the webservice using a XMLHTTPRequest
     drawFrame();
+    sendJSONXMLHTTPRequest('GET', '/world', null, function(resp) {
+        world = resp;
+        drawNextFrame();
+    });
 }
-
 // 30 frames per second
-setInterval( update, 1000/30.0);
+setInterval( update, 1000);
+function clear() {
+    console.log('send clear')
+    sendJSONXMLHTTPRequest('GET', '/clear', null, function(resp) {
+        world = resp;
+        drawNextFrame();
+    })
+}
+var clear_button = document.getElementById('clear');
+clear_button.onclick = clear;
 
-
+// https://www.w3schools.com/howto/howto_css_modals.asp
+var modal = document.getElementById('creditModal');
+var openModal = document.getElementById('openModal');
+var closeModal = document.getElementById('closeModal');
+openModal.onclick = function() {
+    modal.style.display = "block";
+}
+closeModal.onclick = function() {
+    modal.style.display = 'none';
+}
+window.onclick = function(event) {
+    if (event.target === modal) {
+        modal.style.display = 'none';
+    }
+}
 
     </script>
 </body>
